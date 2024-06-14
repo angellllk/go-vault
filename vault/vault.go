@@ -1,4 +1,4 @@
-package main
+package vault
 
 import (
 	"bytes"
@@ -16,10 +16,10 @@ import (
 	"syscall"
 )
 
-const availableCommands = "the commands available are: init, reset, help"
-const initUsage = "usage: \ngo-vault init [secret] [output.json]"
-const resetUsage = "usage: \ngo-vault reset"
-const helpUsage = "usage: \ngo-vault help <command>\n\n"
+const AvailableCmd = "the commands available are: setup, reset, help"
+const SetupUsage = "usage: \ngo-vault setup [secret] [output.json]"
+const ResetUsage = "usage: \ngo-vault reset"
+const HelpUsage = "usage: \ngo-vault help <command>\n\n"
 
 type Vault struct {
 	Nonce   []byte
@@ -27,60 +27,7 @@ type Vault struct {
 	OutputF string
 }
 
-func Start() {
-	if len(os.Args) < 2 {
-		usage := "usage:\n\n\tgo-vault <command> [arguments]\n\n" + availableCommands
-		fmt.Print(usage)
-		return
-	}
-
-	command := os.Args[1]
-
-	var vault Vault
-	var err error
-
-	switch command {
-	case "init":
-		if len(os.Args) < 3 {
-			fmt.Println(initUsage)
-			return
-		}
-
-		err = vault.initVault([]byte(os.Args[2]), os.Args[3])
-		if err != nil {
-			fmt.Println("error:", err)
-		}
-
-	case "reset":
-		if len(os.Args) < 3 {
-			fmt.Println("warning: resetting the vault means complete deletion. Use go-vault reset confirm to confirm.")
-			return
-		}
-
-		if os.Args[2] != "confirm" {
-			return
-		}
-
-		err := os.Remove("vault.json")
-		if err != nil {
-			fmt.Println(err.Error())
-			return
-		}
-
-	case "help":
-		if len(os.Args) < 3 {
-			fmt.Println(helpUsage + availableCommands)
-			return
-		}
-
-		vault.getHelp(os.Args[2])
-
-	default:
-		fmt.Printf("error: unknown command: %s. Use go-vault help ", command)
-	}
-}
-
-func (v *Vault) initVault(secret []byte, output string) error {
+func (v *Vault) Setup(secret []byte, output string) error {
 	errCheck := v.checkFile(output)
 	if errCheck != nil {
 		return errCheck
@@ -212,15 +159,15 @@ func (v *Vault) saveSecret(ciphertext []byte) error {
 	return nil
 }
 
-func (v *Vault) getHelp(command string) {
+func (v *Vault) Help(command string) {
 	switch command {
 	case "init":
-		fmt.Println(initUsage + "\n\n" + "\tinit starts the vault with the \"secret\" passed argument to be used in further cryptographic operations.")
+		fmt.Println(SetupUsage + "\n\n" + "\tinit starts the vault with the \"secret\" passed argument to be used in further cryptographic operations.")
 
 	case "reset":
-		fmt.Println(resetUsage + "\n\n" + "\treset will reset the vault by removing the secret and all the saved data.")
+		fmt.Println(ResetUsage + "\n\n" + "\treset will reset the vault by removing the secret and all the saved data.")
 
 	default:
-		fmt.Println(helpUsage + availableCommands)
+		fmt.Println(HelpUsage + AvailableCmd)
 	}
 }

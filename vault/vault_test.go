@@ -1,16 +1,8 @@
-package main
+package vault
 
 import (
-	"os"
 	"testing"
 )
-
-func testCleanup(t *testing.T, output string) {
-	err := os.Remove(output)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-}
 
 func TestInit(t *testing.T) {
 	output := "test.json"
@@ -18,8 +10,8 @@ func TestInit(t *testing.T) {
 	valid := []byte("secret")
 	invalid := []byte("invalid")
 
-	var vault Vault
-	err := vault.initVault(valid, output)
+	var v Vault
+	err := v.Setup(valid, output)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -70,7 +62,7 @@ func TestInit(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := vault.initVault(tt.args.secret, tt.args.output)
+			err := v.Setup(tt.args.secret, tt.args.output)
 			hasError := err != nil
 			if hasError != tt.wantErr {
 				t.Fatal(err.Error())
