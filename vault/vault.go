@@ -12,12 +12,14 @@ import (
 	"golang.org/x/crypto/chacha20"
 	"golang.org/x/crypto/chacha20poly1305"
 	"os"
+	"path/filepath"
 	"strings"
 	"syscall"
 )
 
 const AvailableCmd = "the commands available are: setup, reset, help"
 const SetupUsage = "usage: \n\tgo-vault setup [secret] [output.json]"
+const AddUsage = "usage: \n\tgo-vault add [username] [password] [website]"
 const ResetUsage = "usage: \n\tgo-vault reset"
 const HelpUsage = "usage: \n\tgo-vault help <command>\n\n"
 
@@ -58,9 +60,17 @@ func (v *Vault) Setup(secret []byte, output string) error {
 }
 
 func (v *Vault) Reset() (err error) {
-	err = os.Remove(v.OutputF)
+	var files []string
+	files, err = findJSONFiles()
 	if err != nil {
 		return err
+	}
+
+	for _, file := range files {
+		err = os.Remove(file)
+		if err != nil {
+			return err
+		}
 	}
 
 	return err
@@ -92,13 +102,13 @@ func (v *Vault) checkFile(output string) error {
 	switch len(sep) {
 	case 2:
 		if !strings.EqualFold(sep[1], "json") {
-			return errors.New("error: invalid output file type. Only .json format is accepted")
+			return errors.New("invalid output file type. Only .json format is accepted")
 		}
 
 		v.OutputF = output
 
 	default:
-		return errors.New("error: invalid output file provided")
+		return errors.New("invalid output file provided")
 	}
 
 	return nil
@@ -181,4 +191,32 @@ func (v *Vault) saveSecret(ciphertext []byte) error {
 	}
 
 	return nil
+}
+
+func findJSONFiles() ([]string, error) {
+	var jsonFiles []string
+
+	root, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+
+	// Walk through the directory
+	err = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Check if the file has a .json extension
+		if !info.IsDir() && strings.HasSuffix(info.Name(), ".json") {
+			jsonFiles = append(jsonFiles, path)
+		}
+		return nil
+	})
+
+	if len(jsonFiles) == 0 {
+		return nil, errors.New("no .json files found")
+	}
+
+	return jsonFiles, err
 }

@@ -20,7 +20,7 @@ func main() {
 
 	switch command {
 	case "setup":
-		if len(os.Args) < 3 {
+		if len(os.Args) < 4 {
 			fmt.Println(vault.SetupUsage)
 			return
 		}
@@ -43,6 +43,12 @@ func main() {
 		err = v.Reset()
 		if err != nil {
 			fmt.Println("error:", err)
+			return
+		}
+
+	case "add":
+		if len(os.Args) < 5 {
+			fmt.Println(vault.AddUsage)
 			return
 		}
 

@@ -74,8 +74,6 @@ func TestVault_Reset(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	testVault.OutputF = "invalid-file"
-
 	err = testVault.Reset()
 	if err != nil {
 		t.Log(err.Error())
