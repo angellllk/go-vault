@@ -5,8 +5,11 @@ import (
 	"testing"
 )
 
-func testCleanup(output string) {
-	os.Remove(output)
+func testCleanup(t *testing.T, output string) {
+	err := os.Remove(output)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
 }
 
 func TestInit(t *testing.T) {
@@ -20,7 +23,7 @@ func TestInit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	defer testCleanup(output)
+	defer testCleanup(t, output)
 
 	type args struct {
 		secret []byte
