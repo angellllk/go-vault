@@ -17,9 +17,9 @@ import (
 )
 
 const AvailableCmd = "the commands available are: setup, reset, help"
-const SetupUsage = "usage: \ngo-vault setup [secret] [output.json]"
-const ResetUsage = "usage: \ngo-vault reset"
-const HelpUsage = "usage: \ngo-vault help <command>\n\n"
+const SetupUsage = "usage: \n\tgo-vault setup [secret] [output.json]"
+const ResetUsage = "usage: \n\tgo-vault reset"
+const HelpUsage = "usage: \n\tgo-vault help <command>\n\n"
 
 type Vault struct {
 	Nonce   []byte
@@ -52,6 +52,30 @@ func (v *Vault) Setup(secret []byte, output string) error {
 	_, errRead := rand.Read(v.Nonce)
 	if errRead != nil {
 		return errRead
+	}
+
+	return nil
+}
+
+func (v *Vault) Reset() (err error) {
+	err = os.Remove(v.OutputF)
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
+func (v *Vault) Help(command string) error {
+	switch command {
+	case "setup":
+		fmt.Println(SetupUsage + "\n\n" + "setup starts the vault with the \"secret\" passed argument to be used in further cryptographic operations.")
+
+	case "reset":
+		fmt.Println(ResetUsage + "\n\n" + "reset will reset the vault by removing the secret and all the saved data.")
+
+	default:
+		return errors.New(fmt.Sprintf("that command is not implemented, %s", AvailableCmd))
 	}
 
 	return nil
@@ -157,17 +181,4 @@ func (v *Vault) saveSecret(ciphertext []byte) error {
 	}
 
 	return nil
-}
-
-func (v *Vault) Help(command string) {
-	switch command {
-	case "init":
-		fmt.Println(SetupUsage + "\n\n" + "\tinit starts the vault with the \"secret\" passed argument to be used in further cryptographic operations.")
-
-	case "reset":
-		fmt.Println(ResetUsage + "\n\n" + "\treset will reset the vault by removing the secret and all the saved data.")
-
-	default:
-		fmt.Println(HelpUsage + AvailableCmd)
-	}
 }

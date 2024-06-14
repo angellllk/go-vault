@@ -4,18 +4,9 @@ import (
 	"testing"
 )
 
-func TestInit(t *testing.T) {
-	output := "test.json"
-
-	valid := []byte("secret")
-	invalid := []byte("invalid")
-
-	var v Vault
-	err := v.Setup(valid, output)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-	defer testCleanup(t, output)
+func TestVault_Setup(t *testing.T) {
+	testVault := testGetVault(t)
+	defer testCleanup(t, testVault.OutputF)
 
 	type args struct {
 		secret []byte
@@ -27,33 +18,33 @@ func TestInit(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		{"init-command-works",
+		{"setup-command-works",
 			args{
-				secret: valid,
-				output: output,
+				secret: []byte(testSecret),
+				output: testOutput,
 			},
 			false,
 		},
 		{
-			"init-command-invalid",
+			"setup-command-invalid",
 			args{
-				secret: invalid,
-				output: output,
+				secret: []byte("invalid"),
+				output: testOutput,
 			},
 			true,
 		},
 		{
-			"init-empty-secret",
+			"setup-empty-secret",
 			args{
 				secret: nil,
-				output: output,
+				output: testOutput,
 			},
 			true,
 		},
 		{
-			"init-invalid-output-file",
+			"setup-invalid-output-file",
 			args{
-				secret: valid,
+				secret: []byte(testSecret),
 				output: "invalid.format.txt",
 			},
 			true,
@@ -62,7 +53,7 @@ func TestInit(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := v.Setup(tt.args.secret, tt.args.output)
+			err := testVault.Setup(tt.args.secret, tt.args.output)
 			hasError := err != nil
 			if hasError != tt.wantErr {
 				t.Fatal(err.Error())
@@ -73,4 +64,62 @@ func TestInit(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestVault_Reset(t *testing.T) {
+	testVault := testGetVault(t)
+
+	err := testVault.Reset()
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	testVault.OutputF = "invalid-file"
+
+	err = testVault.Reset()
+	if err != nil {
+		t.Log(err.Error())
+	}
+}
+
+func TestVault_Help(t *testing.T) {
+	testVault := testGetVault(t)
+	defer testCleanup(t, testVault.OutputF)
+
+	tests := []struct {
+		name    string
+		command string
+		wantErr bool
+	}{
+		{
+			"help-setup-works",
+			"setup",
+			false,
+		},
+		{
+			"help-reset-works",
+			"reset",
+			false,
+		},
+		{
+			"help-invalid-cmd",
+			"test",
+			true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := testVault.Help(tt.command)
+			hasError := err != nil
+			if hasError != tt.wantErr {
+				t.Fatal(err.Error())
+			}
+
+			if tt.wantErr {
+				t.Log(err.Error())
+			}
+		})
+	}
+
 }

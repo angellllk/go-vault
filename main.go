@@ -40,9 +40,9 @@ func main() {
 			return
 		}
 
-		err = os.Remove("vault.json")
+		err = v.Reset()
 		if err != nil {
-			fmt.Println(err.Error())
+			fmt.Println("error:", err)
 			return
 		}
 
@@ -52,7 +52,11 @@ func main() {
 			return
 		}
 
-		v.Help(os.Args[2])
+		err = v.Help(os.Args[2])
+		if err != nil {
+			fmt.Println("error:", err)
+			return
+		}
 
 	default:
 		fmt.Printf("error: unknown command: %s. Use go-vault help ", command)
