@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"golang.org/x/crypto/argon2"
-	"golang.org/x/crypto/chacha20"
 	"golang.org/x/crypto/chacha20poly1305"
 	"os"
 	"path/filepath"
@@ -17,25 +16,30 @@ import (
 	"syscall"
 )
 
-const AvailableCmd = "the commands available are: setup, reset, help"
-const SetupUsage = "usage: \n\tgo-vault setup [secret] [output.json]"
-const AddUsage = "usage: \n\tgo-vault add [username] [password] [website]"
-const ResetUsage = "usage: \n\tgo-vault reset"
-const HelpUsage = "usage: \n\tgo-vault help <command>\n\n"
+const AvailableCmd = "the commands available are: setup, add, reset, help"
+const SetupUsage = "usage: \n\tsetup -s secret -o output.json"
+const AddUsage = "usage: \n\tadd -u username -p password -w website"
+const ResetUsage = "usage: \n\treset"
+const HelpUsage = "usage: \n\thelp <command>\n\n"
 
 type Vault struct {
-	Nonce   []byte
 	Cipher  cipher.AEAD
 	OutputF string
 }
 
-func (v *Vault) Setup(secret []byte, output string) error {
-	errCheck := v.checkFile(output)
-	if errCheck != nil {
-		return errCheck
+type Record struct {
+	Username []byte `json:"username"`
+	Password []byte `json:"password"`
+}
+
+func (v *Vault) Setup(secret []byte, output string) (err error) {
+	err = v.checkFile(output)
+	if err != nil {
+		return err
 	}
 
-	hash, err := v.checkForSecret(secret)
+	var hash []byte
+	hash, err = v.checkForSecret(secret)
 	if err != nil {
 		return err
 	}
@@ -50,10 +54,30 @@ func (v *Vault) Setup(secret []byte, output string) error {
 		return err
 	}
 
-	v.Nonce = make([]byte, chacha20.NonceSize)
-	_, errRead := rand.Read(v.Nonce)
-	if errRead != nil {
-		return errRead
+	return nil
+}
+
+func (v *Vault) Add(name, pwd, site string) (err error) {
+	var encName, encPwd []byte
+
+	encName, err = v.encrypt("username", name)
+	if err != nil {
+		return err
+	}
+
+	encPwd, err = v.encrypt("password", pwd)
+	if err != nil {
+		return err
+	}
+
+	record := Record{
+		Username: encName,
+		Password: encPwd,
+	}
+
+	err = v.saveRecord(site, record)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -115,6 +139,10 @@ func (v *Vault) checkFile(output string) error {
 }
 
 func (v *Vault) checkForSecret(secret []byte) ([]byte, error) {
+	if len(secret) == 0 {
+		return nil, errors.New("no secret provided")
+	}
+
 	secretJson, errRead := os.ReadFile(v.OutputF)
 	if errRead != nil && !errors.Is(errRead, syscall.Errno(2)) {
 		return nil, errRead
@@ -172,7 +200,6 @@ func getPadding(b64enc string, i int, ret *int) {
 		*ret++
 		getPadding(b64enc[:len(b64enc)-i], i+1, ret)
 	}
-
 }
 
 func (v *Vault) saveSecret(ciphertext []byte) error {
@@ -180,7 +207,7 @@ func (v *Vault) saveSecret(ciphertext []byte) error {
 	secretMap := make(map[string][]byte)
 	secretMap["secret"] = ciphertext
 
-	secretJson, errMarshal := json.Marshal(secretMap)
+	secretJson, errMarshal := json.MarshalIndent(secretMap, "", "    ")
 	if errMarshal != nil {
 		return errMarshal
 	}
@@ -191,6 +218,52 @@ func (v *Vault) saveSecret(ciphertext []byte) error {
 	}
 
 	return nil
+}
+
+func (v *Vault) encrypt(mapKey string, field string) (encJson []byte, err error) {
+	nonce := make([]byte, chacha20poly1305.NonceSize)
+	_, err = rand.Read(nonce)
+	if err != nil {
+		return nil, err
+	}
+
+	enc := v.Cipher.Seal(nil, nonce, []byte(field), nil)
+
+	cred := make(map[string][]byte)
+	cred[mapKey] = enc
+
+	var credJson []byte
+	credJson, err = json.Marshal(cred)
+	if err != nil {
+		return nil, err
+	}
+
+	return credJson, nil
+}
+
+func (v *Vault) saveRecord(site string, r Record) error {
+	vaultJson, err := os.ReadFile(v.OutputF)
+	if err != nil {
+		return err
+	}
+
+	var existingData interface{}
+
+	err = json.Unmarshal(vaultJson, &existingData)
+	if err != nil {
+		return err
+	}
+
+	data := existingData.(map[string]interface{})
+	data[site] = r
+
+	updated, err := json.MarshalIndent(data, "", "    ")
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(v.OutputF, updated, 0644)
+	return err
 }
 
 func findJSONFiles() ([]string, error) {

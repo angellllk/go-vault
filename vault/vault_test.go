@@ -66,6 +66,11 @@ func TestVault_Setup(t *testing.T) {
 	}
 }
 
+func TestVault_Add(t *testing.T) {
+	testVault := testGetVault(t)
+	testVault.Add("test", "test", "test")
+}
+
 func TestVault_Reset(t *testing.T) {
 	testVault := testGetVault(t)
 
